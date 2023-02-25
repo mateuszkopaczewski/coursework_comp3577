@@ -147,14 +147,34 @@ void NBodySimulation::updateBody () {
       force2[i] += force_calculation(i,j,2);
     }
 
-    // Update the position and velocity of body i.
-    x[i][0] = x[i][0] + timeStepSize * v[i][0];
-    x[i][1] = x[i][1] + timeStepSize * v[i][1];
-    x[i][2] = x[i][2] + timeStepSize * v[i][2];
+    // Half-step update of the velocity.
+    v[i][0] += 0.5 * timeStepSize * force0[i] / mass[i];
+    v[i][1] += 0.5 * timeStepSize * force1[i] / mass[i];
+    v[i][2] += 0.5 * timeStepSize * force2[i] / mass[i];
 
-    v[i][0] = v[i][0] + timeStepSize * force0[i] / mass[i];
-    v[i][1] = v[i][1] + timeStepSize * force1[i] / mass[i];
-    v[i][2] = v[i][2] + timeStepSize * force2[i] / mass[i];
+    // Full-step update of the position.
+    x[i][0] += timeStepSize * v[i][0];
+    x[i][1] += timeStepSize * v[i][1];
+    x[i][2] += timeStepSize * v[i][2];
+
+    // Calculate the forces acting on the updated position.
+    double force0_new = 0.0;
+    double force1_new = 0.0;
+    double force2_new = 0.0;
+
+    for (int j=0; j<NumberOfBodies; j++) {
+      if (i == j) continue; // Skip self-interaction.
+
+      // Calculate the force acting on body i due to body j.
+      force0_new += force_calculation(i,j,0);
+      force1_new += force_calculation(i,j,1);
+      force2_new += force_calculation(i,j,2);
+    }
+
+    // Half-step update of the velocity.
+    v[i][0] += 0.5 * timeStepSize * force0_new / mass[i];
+    v[i][1] += 0.5 * timeStepSize * force1_new / mass[i];
+    v[i][2] += 0.5 * timeStepSize * force2_new / mass[i];
 
     // Update the max velocity.
     double vel = std::sqrt( v[i][0]*v[i][0] + v[i][1]*v[i][1] + v[i][2]*v[i][2] );
@@ -168,7 +188,6 @@ void NBodySimulation::updateBody () {
   delete[] force1;
   delete[] force2;
 }
-
 
 /**
  * Check if simulation has been completed.
