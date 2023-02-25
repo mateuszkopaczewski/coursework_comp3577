@@ -127,40 +127,48 @@ void NBodySimulation::updateBody () {
   maxV   = 0.0;
   minDx  = std::numeric_limits<double>::max();
 
-  // force0 = force along x direction
-  // force1 = force along y direction
-  // force2 = force along z direction
+  // Allocate arrays for forces acting on each body along x,y,z directions.
   double* force0 = new double[NumberOfBodies];
   double* force1 = new double[NumberOfBodies];
   double* force2 = new double[NumberOfBodies];
 
-  force0[0] = 0.0;
-  force1[0] = 0.0;
-  force2[0] = 0.0;
+  // Calculate the forces acting on each body.
+  for (int i=0; i<NumberOfBodies; i++) {
+    force0[i] = 0.0;
+    force1[i] = 0.0;
+    force2[i] = 0.0;
 
-  for (int i=1; i<NumberOfBodies; i++) {
-    // x,y,z forces acting on particle 0.
-    force0[0] += force_calculation(i,0,0);
-    force1[0] += force_calculation(i,0,1);
-    force2[0] += force_calculation(i,0,2);
+    for (int j=0; j<NumberOfBodies; j++) {
+      if (i == j) continue; // Skip self-interaction.
+
+      // Calculate the force acting on body i due to body j.
+      force0[i] += force_calculation(i,j,0);
+      force1[i] += force_calculation(i,j,1);
+      force2[i] += force_calculation(i,j,2);
+    }
+
+    // Update the position and velocity of body i.
+    x[i][0] = x[i][0] + timeStepSize * v[i][0];
+    x[i][1] = x[i][1] + timeStepSize * v[i][1];
+    x[i][2] = x[i][2] + timeStepSize * v[i][2];
+
+    v[i][0] = v[i][0] + timeStepSize * force0[i] / mass[i];
+    v[i][1] = v[i][1] + timeStepSize * force1[i] / mass[i];
+    v[i][2] = v[i][2] + timeStepSize * force2[i] / mass[i];
+
+    // Update the max velocity.
+    double vel = std::sqrt( v[i][0]*v[i][0] + v[i][1]*v[i][1] + v[i][2]*v[i][2] );
+    maxV = std::max(maxV, vel);
   }
-
-  x[0][0] = x[0][0] + timeStepSize * v[0][0];
-  x[0][1] = x[0][1] + timeStepSize * v[0][1];
-  x[0][2] = x[0][2] + timeStepSize * v[0][2];
-
-  v[0][0] = v[0][0] + timeStepSize * force0[0] / mass[0];
-  v[0][1] = v[0][1] + timeStepSize * force1[0] / mass[0];
-  v[0][2] = v[0][2] + timeStepSize * force2[0] / mass[0];
-
-  maxV = std::sqrt( v[0][0]*v[0][0] + v[0][1]*v[0][1] + v[0][2]*v[0][2] );
 
   t += timeStepSize;
 
+  // Free the memory allocated for the forces.
   delete[] force0;
   delete[] force1;
   delete[] force2;
 }
+
 
 /**
  * Check if simulation has been completed.
