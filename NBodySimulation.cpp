@@ -132,15 +132,32 @@ void NBodySimulation::updateBody () {
   double* force1 = new double[NumberOfBodies];
   double* force2 = new double[NumberOfBodies];
 
+  const double cutoff = 2.0
+  const double skin = 0.2
+  const double cutoff2 = (cutoff + skin) * (cutoff + skin);
+
+  sstd::vector<std::vector<int>> neighbors(NumberOfBodies);
+  
+  for (int i = 0; i < NumberOfBodies; i++) {
+    for (int j = i + 1; j < NumberOfBodies; j++) {
+      double dx = x[i][0] - x[j][0];
+      double dy = x[i][1] - x[j][1];
+      double dz = x[i][2] - x[j][2];
+      double r2 = dx*dx + dy*dy + dz*dz;
+      if (r2 <= cutoff2) {
+        neighbors[i].push_back(j);
+        neighbors[j].push_back(i);
+      }
+    }
+  }
+
   // Calculate the forces acting on each body.
   for (int i=0; i<NumberOfBodies; i++) {
     force0[i] = 0.0;
     force1[i] = 0.0;
     force2[i] = 0.0;
 
-    for (int j=0; j<NumberOfBodies; j++) {
-      if (i == j) continue; // Skip self-interaction.
-
+    for (int j : neighbors[i]) {
       // Calculate the force acting on body i due to body j.
       force0[i] += force_calculation(i,j,0);
       force1[i] += force_calculation(i,j,1);
@@ -162,7 +179,7 @@ void NBodySimulation::updateBody () {
     double force1_new = 0.0;
     double force2_new = 0.0;
 
-    for (int j=0; j<NumberOfBodies; j++) {
+    for (int j : neighbors[i]) {
       if (i == j) continue; // Skip self-interaction.
 
       // Calculate the force acting on body i due to body j.
