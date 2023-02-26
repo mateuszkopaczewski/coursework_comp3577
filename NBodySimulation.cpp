@@ -127,36 +127,6 @@ void NBodySimulation::updateBody () {
   maxV   = 0.0;
   minDx  = std::numeric_limits<double>::max();
 
-  // Update neighbor list
-  if (neighborList.empty()) {
-    // If the neighbor list is empty, initialize it with all particles
-    neighborList.resize(NumberOfBodies);
-    for (int i=0; i<NumberOfBodies; i++) {
-      for (int j=0; j<NumberOfBodies; j++) {
-        if (i != j && distance(i,j) <= neighborDistance) {
-          neighborList[i].push_back(j);
-        }
-      }
-    }
-  } else {
-    // If the neighbor list already exists, update it based on particle displacements
-    for (int i=0; i<NumberOfBodies; i++) {
-      std::vector<int> newNeighbors;
-      for (int j=0; j<neighborList[i].size(); j++) {
-        int neighborIndex = neighborList[i][j];
-        if (distance(i,neighborIndex) <= neighborDistance) {
-          newNeighbors.push_back(neighborIndex);
-        }
-      }
-      for (int j=0; j<NumberOfBodies; j++) {
-        if (i != j && distance(i,j) <= neighborDistance && std::find(newNeighbors.begin(), newNeighbors.end(), j) == newNeighbors.end()) {
-          newNeighbors.push_back(j);
-        }
-      }
-      neighborList[i] = newNeighbors;
-    }
-  }
-
   // Allocate arrays for forces acting on each body along x,y,z directions.
   double* force0 = new double[NumberOfBodies];
   double* force1 = new double[NumberOfBodies];
@@ -168,13 +138,13 @@ void NBodySimulation::updateBody () {
     force1[i] = 0.0;
     force2[i] = 0.0;
 
-    for (int j=0; j<neighborList[i].size(); j++) {
-      int neighborIndex = neighborList[i][j];
+    for (int j=0; j<NumberOfBodies; j++) {
+      if (i == j) continue; // Skip self-interaction.
 
-      // Calculate the force acting on body i due to its neighbor j.
-      force0[i] += force_calculation(i,neighborIndex,0);
-      force1[i] += force_calculation(i,neighborIndex,1);
-      force2[i] += force_calculation(i,neighborIndex,2);
+      // Calculate the force acting on body i due to body j.
+      force0[i] += force_calculation(i,j,0);
+      force1[i] += force_calculation(i,j,1);
+      force2[i] += force_calculation(i,j,2);
     }
 
     // Half-step update of the velocity.
@@ -182,49 +152,42 @@ void NBodySimulation::updateBody () {
     v[i][1] += 0.5 * timeStepSize * force1[i] / mass[i];
     v[i][2] += 0.5 * timeStepSize * force2[i] / mass[i];
 
-    // Update the positions of the bodies.
-    position[i][0] += timeStep*velocity[i][0];
-    position[i][1] += timeStep*velocity[i][1];
-    position[i][2] += timeStep*velocity[i][2];
+    // Full-step update of the position.
+    x[i][0] += timeStepSize * v[i][0];
+    x[i][1] += timeStepSize * v[i][1];
+    x[i][2] += timeStepSize * v[i][2];
 
-    // Calculate the forces acting on the bodies due to their new positions.
-    force0[i] = 0.0;
-    force1[i] = 0.0;
-    force2[i] = 0.0;
+    // Calculate the forces acting on the updated position.
+    double force0_new = 0.0;
+    double force1_new = 0.0;
+    double force2_new = 0.0;
 
-    for (int j=0; j<neighborList[i].size(); j++) {
-      int neighborIndex = neighborList[i][j];
+    for (int j=0; j<NumberOfBodies; j++) {
+      if (i == j) continue; // Skip self-interaction.
 
-      // Calculate the force acting on body i due to its neighbor j.
-      force0[i] += force_calculation(i,neighborIndex,0);
-      force1[i] += force_calculation(i,neighborIndex,1);
-      force2[i] += force_calculation(i,neighborIndex,2);
+      // Calculate the force acting on body i due to body j.
+      force0_new += force_calculation(i,j,0);
+      force1_new += force_calculation(i,j,1);
+      force2_new += force_calculation(i,j,2);
     }
 
     // Half-step update of the velocity.
-    velocity[i][0] += 0.5*timeStep*force0[i]/mass[i];
-    velocity[i][1] += 0.5*timeStep*force1[i]/mass[i];
-    velocity[i][2] += 0.5*timeStep*force2[i]/mass[i];
+    v[i][0] += 0.5 * timeStepSize * force0_new / mass[i];
+    v[i][1] += 0.5 * timeStepSize * force1_new / mass[i];
+    v[i][2] += 0.5 * timeStepSize * force2_new / mass[i];
 
-    // Update the maximum velocity and minimum distance between bodies.
-    double v = std::sqrt(velocity[i][0]*velocity[i][0] + velocity[i][1]*velocity[i][1] + velocity[i][2]*velocity[i][2]);
-    if (v > maxV) maxV = v;
+    // Update the max velocity.
+    double vel = std::sqrt( v[i][0]*v[i][0] + v[i][1]*v[i][1] + v[i][2]*v[i][2] );
+    maxV = std::max(maxV, vel);
+  }
 
-    for (int j=i+1; j<NumberOfBodies; j++) {
-      double dx = distance(i,j);
-      if (dx < minDx) minDx = dx;
-    }
+  t += timeStepSize;
 
-    }
-
-    t += timeStepSize;
-
-    delete[] force0;
-    delete[] force1;  
-    delete[] force2;
-
-    }
-
+  // Free the memory allocated for the forces.
+  delete[] force0;
+  delete[] force1;
+  delete[] force2;
+}
 
 /**
  * Check if simulation has been completed.
