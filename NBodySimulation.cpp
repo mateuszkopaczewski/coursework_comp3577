@@ -1,4 +1,5 @@
 #include "NBodySimulation.h"
+#include <vector>
 
 NBodySimulation::NBodySimulation () :
   t(0), tFinal(0), tPlot(0), tPlotDelta(0), NumberOfBodies(0),
@@ -136,7 +137,7 @@ void NBodySimulation::updateBody () {
   const double skin = 0.2
   const double cutoff2 = (cutoff + skin) * (cutoff + skin);
 
-  sstd::vector<std::vector<int>> neighbors(NumberOfBodies);
+  std::vector<std::vector<int>> neighbors(NumberOfBodies);
   
   for (int i = 0; i < NumberOfBodies; i++) {
     for (int j = i + 1; j < NumberOfBodies; j++) {
