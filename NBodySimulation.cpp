@@ -136,7 +136,7 @@ void NBodySimulation::updateBody () {
   const double cutoff = 2.0
   const double skin = 0.2
   const double cutoff2 = (cutoff + skin) * (cutoff + skin);
-
+  const double C = (1/100)/NumberOfBodies
   std::vector<std::vector<int>> neighbors(NumberOfBodies);
   
   for (int i = 0; i < NumberOfBodies; i++) {
@@ -145,6 +145,25 @@ void NBodySimulation::updateBody () {
       double dy = x[i][1] - x[j][1];
       double dz = x[i][2] - x[j][2];
       double r2 = dx*dx + dy*dy + dz*dz;
+      if (r2 <= C * (mass[i]+mass[j])) {
+        x[i][0] = (mass[i]*x[i][0] + mass[j]*x[j][0]) / (mass[i] + mass[j]);
+        x[i][1] = (mass[i]*x[i][1] + mass[j]*x[j][1]) / (mass[i] + mass[j]);
+        x[i][2] = (mass[i]*x[i][2] + mass[j]*x[j][2]) / (mass[i] + mass[j]);
+        v[i][0] = (mass[i]*v[i][0] + mass[j]*v[j][0]) / (mass[i] + mass[j]);
+        v[i][1] = (mass[i]*v[i][1] + mass[j]*v[j][1]) / (mass[i] + mass[j]);
+        v[i][2] = (mass[i]*v[i][2] + mass[j]*v[j][2]) / (mass[i] + mass[j]);
+        mass[i] += mass[j];
+        x[j][0] = x[NumberOfBodies-1][0];
+        x[j][1] = x[NumberOfBodies-1][1];
+        x[j][2] = x[NumberOfBodies-1][2];
+        v[j][0] = v[NumberOfBodies-1][0];
+        v[j][1] = v[NumberOfBodies-1][1];
+        v[j][2] = v[NumberOfBodies-1][2];
+        mass[j] = mass[NumberOfBodies-1];
+        NumberOfBodies--;
+        j--;
+        continue
+      }
       if (r2 <= cutoff2) {
         neighbors[i].push_back(j);
         neighbors[j].push_back(i);
@@ -194,9 +213,11 @@ void NBodySimulation::updateBody () {
     v[i][1] += 0.5 * timeStepSize * force1_new / mass[i];
     v[i][2] += 0.5 * timeStepSize * force2_new / mass[i];
 
+    for ()
     // Update the max velocity.
     double vel = std::sqrt( v[i][0]*v[i][0] + v[i][1]*v[i][1] + v[i][2]*v[i][2] );
     maxV = std::max(maxV, vel);
+
   }
 
   t += timeStepSize;
